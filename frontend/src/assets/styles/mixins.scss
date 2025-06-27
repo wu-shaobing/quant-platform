@@ -1,0 +1,83 @@
+//
+// 全局 SCSS Mixins
+//
+
+// 1. 媒体查询
+// ---
+// 示例:
+// .element {
+//   @include respond-to('md') {
+//     flex-direction: column;
+//   }
+// }
+$breakpoints: (
+  'sm': 640px,
+  'md': 768px,
+  'lg': 1024px,
+  'xl': 1280px,
+  '2xl': 1536px,
+);
+
+@mixin respond-to($breakpoint) {
+  @if map-has-key($breakpoints, $breakpoint) {
+    @media (min-width: #{map-get($breakpoints, $breakpoint)}) {
+      @content;
+    }
+  } @else {
+    @warn "Breakpoint `#{$breakpoint}` not found.";
+  }
+}
+
+// 2. 文本溢出
+// ---
+@mixin text-ellipsis($lines: 1) {
+  @if $lines == 1 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  } @else {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: $lines;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// 3. 清除浮动
+// ---
+@mixin clearfix {
+  &::after {
+    content: "";
+    display: table;
+    clear: both;
+  }
+}
+
+// 4. Flex 居中
+// ---
+@mixin flex-center($direction: row) {
+  display: flex;
+  flex-direction: $direction;
+  align-items: center;
+  justify-content: center;
+}
+
+// 5. 滚动条美化
+// ---
+@mixin pretty-scrollbar($size: 8px, $thumb-color: #ccc, $track-color: transparent) {
+  &::-webkit-scrollbar {
+    width: $size;
+    height: $size;
+  }
+  &::-webkit-scrollbar-track {
+    background: $track-color;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $thumb-color;
+    border-radius: $size;
+    &:hover {
+      background: darken($thumb-color, 10%);
+    }
+  }
+} 
