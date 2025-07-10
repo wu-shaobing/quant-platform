@@ -1,0 +1,24 @@
+apiVersion: 1
+
+providers:
+  # 量化平台仪表板
+  - name: 'quant-platform'
+    orgId: 1
+    folder: '量化交易平台'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+
+  # 系统监控仪表板
+  - name: 'system-monitoring'
+    orgId: 1
+    folder: '系统监控'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/system

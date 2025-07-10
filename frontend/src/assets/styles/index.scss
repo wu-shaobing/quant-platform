@@ -1,0 +1,41 @@
+/*
+ * 主样式入口文件
+ */
+
+// 0. 引入变量和 mixins
+@use "./variables.scss" as *;
+@use "./mixins.scss" as *;
+
+// 1. 引入 Tailwind CSS
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+// 2. 引入项目基础样式 (未来可添加)
+// @import './reset.scss';
+// @import './base.scss';
+
+// 3. 引入特定组件或页面的样式 (未来可添加)
+// @import './components.scss';
+
+// 4. 全局样式定义
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: $bg-color;
+  color: $text-primary-color;
+  font-family: $font-family-sans;
+  font-size: $font-size-base;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// 覆盖 Element Plus 的一些全局样式
+.el-card {
+  box-shadow: $shadow-sm !important;
+}
+
+.el-button {
+  transition: $transition-fast;
+} 

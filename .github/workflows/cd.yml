@@ -1,0 +1,332 @@
+name: CD Pipeline
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types:
+      - completed
+    branches: [main, develop]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # 部署到开发环境
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'develop' }}
+    environment: development
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG_DEV }}" | base64 -d > ~/.kube/config
+
+      - name: Deploy to development
+        run: |
+          # 更新镜像标签
+          sed -i "s|IMAGE_TAG|${{ github.event.workflow_run.head_sha }}|g" k8s/dev/deployment.yaml
+          
+          # 应用配置
+          kubectl apply -f k8s/dev/namespace.yaml
+          kubectl apply -f k8s/dev/configmap.yaml
+          kubectl apply -f k8s/dev/secrets.yaml
+          kubectl apply -f k8s/dev/deployment.yaml
+          kubectl apply -f k8s/dev/service.yaml
+          kubectl apply -f k8s/dev/ingress.yaml
+          
+          # 等待部署完成
+          kubectl rollout status deployment/quant-platform-backend -n quant-platform-dev --timeout=300s
+          kubectl rollout status deployment/quant-platform-frontend -n quant-platform-dev --timeout=300s
+
+      - name: Run smoke tests
+        run: |
+          # 等待服务就绪
+          sleep 30
+          
+          # 健康检查
+          kubectl exec -n quant-platform-dev deployment/quant-platform-backend -- curl -f http://localhost:8000/health
+          
+          # 基本API测试
+          DEV_URL=$(kubectl get ingress -n quant-platform-dev quant-platform-ingress -o jsonpath='{.spec.rules[0].host}')
+          curl -f "https://${DEV_URL}/api/v1/health"
+
+      - name: Notify deployment status
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+
+  # 部署到预生产环境
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    environment: staging
+    needs: []
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > ~/.kube/config
+
+      - name: Deploy to staging
+        run: |
+          # 更新镜像标签
+          sed -i "s|IMAGE_TAG|${{ github.event.workflow_run.head_sha }}|g" k8s/staging/deployment.yaml
+          
+          # 应用配置
+          kubectl apply -f k8s/staging/namespace.yaml
+          kubectl apply -f k8s/staging/configmap.yaml
+          kubectl apply -f k8s/staging/secrets.yaml
+          kubectl apply -f k8s/staging/deployment.yaml
+          kubectl apply -f k8s/staging/service.yaml
+          kubectl apply -f k8s/staging/ingress.yaml
+          
+          # 等待部署完成
+          kubectl rollout status deployment/quant-platform-backend -n quant-platform-staging --timeout=600s
+          kubectl rollout status deployment/quant-platform-frontend -n quant-platform-staging --timeout=600s
+
+      - name: Run integration tests
+        run: |
+          # 等待服务就绪
+          sleep 60
+          
+          # 运行集成测试套件
+          STAGING_URL=$(kubectl get ingress -n quant-platform-staging quant-platform-ingress -o jsonpath='{.spec.rules[0].host}')
+          
+          # 健康检查
+          curl -f "https://${STAGING_URL}/api/v1/health"
+          
+          # 运行API测试
+          cd tests/integration
+          python -m pytest api_tests.py --base-url="https://${STAGING_URL}"
+
+      - name: Performance tests
+        run: |
+          # 运行性能测试
+          STAGING_URL=$(kubectl get ingress -n quant-platform-staging quant-platform-ingress -o jsonpath='{.spec.rules[0].host}')
+          
+          # 使用k6进行负载测试
+          docker run --rm -v $(pwd)/tests/performance:/scripts grafana/k6:latest run \
+            --env BASE_URL="https://${STAGING_URL}" \
+            /scripts/load_test.js
+
+      - name: Security scan
+        run: |
+          # 运行安全扫描
+          STAGING_URL=$(kubectl get ingress -n quant-platform-staging quant-platform-ingress -o jsonpath='{.spec.rules[0].host}')
+          
+          # OWASP ZAP扫描
+          docker run --rm -v $(pwd)/tests/security:/zap/wrk/:rw \
+            owasp/zap2docker-stable zap-baseline.py \
+            -t "https://${STAGING_URL}" \
+            -r zap_report.html
+
+      - name: Notify staging deployment
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+
+  # 部署到生产环境
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    environment: production
+    needs: [deploy-staging]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > ~/.kube/config
+
+      - name: Backup current deployment
+        run: |
+          # 备份当前部署配置
+          kubectl get deployment quant-platform-backend -n quant-platform-prod -o yaml > backup-backend-deployment.yaml
+          kubectl get deployment quant-platform-frontend -n quant-platform-prod -o yaml > backup-frontend-deployment.yaml
+          
+          # 上传备份到artifact
+          echo "BACKUP_DATE=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_ENV
+
+      - name: Deploy to production
+        run: |
+          # 更新镜像标签
+          sed -i "s|IMAGE_TAG|${{ github.event.workflow_run.head_sha }}|g" k8s/prod/deployment.yaml
+          
+          # 应用配置
+          kubectl apply -f k8s/prod/namespace.yaml
+          kubectl apply -f k8s/prod/configmap.yaml
+          kubectl apply -f k8s/prod/secrets.yaml
+          
+          # 滚动更新部署
+          kubectl apply -f k8s/prod/deployment.yaml
+          
+          # 等待部署完成
+          kubectl rollout status deployment/quant-platform-backend -n quant-platform-prod --timeout=900s
+          kubectl rollout status deployment/quant-platform-frontend -n quant-platform-prod --timeout=900s
+          
+          # 应用服务和Ingress
+          kubectl apply -f k8s/prod/service.yaml
+          kubectl apply -f k8s/prod/ingress.yaml
+
+      - name: Health check
+        run: |
+          # 等待服务稳定
+          sleep 120
+          
+          # 健康检查
+          PROD_URL=$(kubectl get ingress -n quant-platform-prod quant-platform-ingress -o jsonpath='{.spec.rules[0].host}')
+          
+          # 检查所有关键端点
+          curl -f "https://${PROD_URL}/api/v1/health"
+          curl -f "https://${PROD_URL}/api/v1/monitoring/health"
+          curl -f "https://${PROD_URL}/api/v1/ctp/status"
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "部署失败，执行回滚..."
+          kubectl apply -f backup-backend-deployment.yaml
+          kubectl apply -f backup-frontend-deployment.yaml
+          kubectl rollout status deployment/quant-platform-backend -n quant-platform-prod --timeout=600s
+          kubectl rollout status deployment/quant-platform-frontend -n quant-platform-prod --timeout=600s
+
+      - name: Upload backup artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: deployment-backup-${{ env.BACKUP_DATE }}
+          path: |
+            backup-*.yaml
+
+      - name: Notify production deployment
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          channel: '#production'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          custom_payload: |
+            {
+              "text": "生产环境部署 ${{ job.status }}",
+              "attachments": [
+                {
+                  "color": "${{ job.status == 'success' && 'good' || 'danger' }}",
+                  "fields": [
+                    {
+                      "title": "Repository",
+                      "value": "${{ github.repository }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Commit",
+                      "value": "${{ github.event.workflow_run.head_sha }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Branch",
+                      "value": "${{ github.event.workflow_run.head_branch }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Status",
+                      "value": "${{ job.status }}",
+                      "short": true
+                    }
+                  ]
+                }
+              ]
+            }
+
+  # 部署后监控
+  post-deployment-monitoring:
+    name: Post-deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: success()
+
+    steps:
+      - name: Monitor deployment
+        run: |
+          # 监控部署后的系统状态
+          echo "开始部署后监控..."
+          
+          # 等待5分钟让系统稳定
+          sleep 300
+          
+          # 检查关键指标
+          PROD_URL=$(kubectl get ingress -n quant-platform-prod quant-platform-ingress -o jsonpath='{.spec.rules[0].host}')
+          
+          # 检查错误率
+          ERROR_RATE=$(curl -s "https://${PROD_URL}/api/v1/monitoring/metrics" | grep error_rate | awk '{print $2}')
+          if (( $(echo "$ERROR_RATE > 0.01" | bc -l) )); then
+            echo "错误率过高: $ERROR_RATE"
+            exit 1
+          fi
+          
+          # 检查响应时间
+          RESPONSE_TIME=$(curl -s "https://${PROD_URL}/api/v1/monitoring/metrics" | grep response_time_p95 | awk '{print $2}')
+          if (( $(echo "$RESPONSE_TIME > 1000" | bc -l) )); then
+            echo "响应时间过长: $RESPONSE_TIME ms"
+            exit 1
+          fi
+
+      - name: Create deployment record
+        run: |
+          # 创建部署记录
+          cat > deployment_record.json << EOF
+          {
+            "deployment_id": "${{ github.run_id }}",
+            "commit_sha": "${{ github.event.workflow_run.head_sha }}",
+            "branch": "${{ github.event.workflow_run.head_branch }}",
+            "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "deployed_by": "${{ github.actor }}",
+            "environment": "production",
+            "status": "success"
+          }
+          EOF
+          
+          # 发送到监控系统
+          curl -X POST "https://monitoring.quant-platform.com/api/deployments" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.MONITORING_API_TOKEN }}" \
+            -d @deployment_record.json

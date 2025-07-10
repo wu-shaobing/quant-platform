@@ -1,0 +1,41 @@
+# 开发和测试依赖
+
+# 测试框架
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-xdist==3.5.0
+pytest-mock==3.12.0
+httpx==0.25.2  # 用于测试API
+
+# 代码质量
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+mypy==1.7.1
+bandit==1.7.5
+pre-commit==3.6.0
+
+# 文档生成
+mkdocs==1.5.3
+mkdocs-material==9.4.8
+mkdocstrings[python]==0.24.0
+
+# 性能分析
+py-spy==0.3.14
+memory-profiler==0.61.0
+line-profiler==4.1.1
+
+# 调试工具
+ipdb==0.13.13
+pdbpp==0.10.3
+
+# 数据库工具
+faker==20.1.0  # 生成测试数据
+
+# 开发服务器
+watchfiles==0.21.0
+
+# 类型检查
+types-redis==4.6.0.11
+types-python-dateutil==2.8.19.14 

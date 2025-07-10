@@ -1,0 +1,306 @@
+/**
+ * SCSS 变量定义
+ * 包含颜色、字体、尺寸、阴影等全局设计令牌
+ */
+
+// =================================
+// 颜色系统
+// =================================
+
+// 主色调
+$primary-50: #eff6ff;
+$primary-100: #dbeafe;
+$primary-200: #bfdbfe;
+$primary-300: #93c5fd;
+$primary-400: #60a5fa;
+$primary-500: #3b82f6;
+$primary-600: #2563eb;
+$primary-700: #1d4ed8;
+$primary-800: #1e40af;
+$primary-900: #1e3a8a;
+
+// 中性色 (灰色系)
+$neutral-50: #f9fafb;
+$neutral-100: #f3f4f6;
+$neutral-200: #e5e7eb;
+$neutral-300: #d1d5db;
+$neutral-400: #9ca3af;
+$neutral-500: #6b7280;
+$neutral-600: #4b5563;
+$neutral-700: #374151;
+$neutral-800: #1f2937;
+$neutral-900: #111827;
+
+// 功能色
+$success-50: #ecfdf5;
+$success-500: #10b981;
+$success-600: #059669;
+$success-700: #047857;
+
+$warning-50: #fffbeb;
+$warning-500: #f59e0b;
+$warning-600: #d97706;
+$warning-700: #b45309;
+
+$error-50: #fef2f2;
+$error-500: #ef4444;
+$error-600: #dc2626;
+$error-700: #b91c1c;
+
+$info-50: #eff6ff;
+$info-500: #3b82f6;
+$info-600: #2563eb;
+$info-700: #1d4ed8;
+
+// 金融专用色彩
+$up-color: #ff4d4f;        // 涨 - 红色
+$down-color: #52c41a;      // 跌 - 绿色
+$neutral-price: #8c8c8c;   // 平盘 - 灰色
+
+$buy-color: #ff4d4f;       // 买入
+$sell-color: #52c41a;      // 卖出
+
+// 渐变色
+$gradient-primary: linear-gradient(135deg, $primary-500 0%, $primary-700 100%);
+$gradient-success: linear-gradient(135deg, $success-500 0%, $success-700 100%);
+$gradient-warning: linear-gradient(135deg, $warning-500 0%, $warning-700 100%);
+$gradient-error: linear-gradient(135deg, $error-500 0%, $error-700 100%);
+
+// =================================
+// 语义化颜色
+// =================================
+
+// 背景色
+$bg-color: #ffffff;
+$bg-color-secondary: $neutral-50;
+$bg-color-tertiary: $neutral-100;
+$bg-color-inverse: $neutral-900;
+
+// 文本色
+$text-primary-color: $neutral-800;
+$text-secondary-color: $neutral-600;
+$text-tertiary-color: $neutral-400;
+$text-inverse-color: #ffffff;
+$text-placeholder-color: $neutral-400;
+
+// 边框色
+$border-color: $neutral-200;
+$border-color-light: $neutral-100;
+$border-color-dark: $neutral-300;
+
+// 链接色
+$link-color: $primary-600;
+$link-hover-color: $primary-700;
+$link-active-color: $primary-800;
+
+// =================================
+// 字体系统
+// =================================
+
+// 字体族
+$font-family-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+$font-family-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+$font-family-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+// 字体大小
+$font-size-xs: 0.75rem;    // 12px
+$font-size-sm: 0.875rem;   // 14px
+$font-size-base: 1rem;     // 16px
+$font-size-lg: 1.125rem;   // 18px
+$font-size-xl: 1.25rem;    // 20px
+$font-size-2xl: 1.5rem;    // 24px
+$font-size-3xl: 1.875rem;  // 30px
+$font-size-4xl: 2.25rem;   // 36px
+$font-size-5xl: 3rem;      // 48px
+
+// 字体粗细
+$font-weight-thin: 100;
+$font-weight-light: 300;
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+$font-weight-extrabold: 800;
+
+// 行高
+$line-height-tight: 1.25;
+$line-height-snug: 1.375;
+$line-height-normal: 1.5;
+$line-height-relaxed: 1.625;
+$line-height-loose: 2;
+
+// =================================
+// 间距系统
+// =================================
+
+$spacing-0: 0;
+$spacing-1: 0.25rem;   // 4px
+$spacing-2: 0.5rem;    // 8px
+$spacing-3: 0.75rem;   // 12px
+$spacing-4: 1rem;      // 16px
+$spacing-5: 1.25rem;   // 20px
+$spacing-6: 1.5rem;    // 24px
+$spacing-8: 2rem;      // 32px
+$spacing-10: 2.5rem;   // 40px
+$spacing-12: 3rem;     // 48px
+$spacing-16: 4rem;     // 64px
+$spacing-20: 5rem;     // 80px
+$spacing-24: 6rem;     // 96px
+$spacing-32: 8rem;     // 128px
+
+// =================================
+// 尺寸系统
+// =================================
+
+// 宽度
+$width-xs: 20rem;      // 320px
+$width-sm: 24rem;      // 384px
+$width-md: 28rem;      // 448px
+$width-lg: 32rem;      // 512px
+$width-xl: 36rem;      // 576px
+$width-2xl: 42rem;     // 672px
+$width-3xl: 48rem;     // 768px
+$width-4xl: 56rem;     // 896px
+$width-5xl: 64rem;     // 1024px
+$width-6xl: 72rem;     // 1152px
+$width-7xl: 80rem;     // 1280px
+
+// 高度
+$height-header: 4rem;     // 64px
+$height-sidebar: 100vh;
+$height-footer: 3rem;     // 48px
+
+// =================================
+// 圆角系统
+// =================================
+
+$border-radius-none: 0;
+$border-radius-sm: 0.125rem;   // 2px
+$border-radius: 0.25rem;       // 4px
+$border-radius-md: 0.375rem;   // 6px
+$border-radius-lg: 0.5rem;     // 8px
+$border-radius-xl: 0.75rem;    // 12px
+$border-radius-2xl: 1rem;      // 16px
+$border-radius-3xl: 1.5rem;    // 24px
+$border-radius-full: 9999px;
+
+// =================================
+// 阴影系统
+// =================================
+
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+$shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+$shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+$shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+
+// =================================
+// 动画系统
+// =================================
+
+// 过渡时间
+$duration-75: 75ms;
+$duration-100: 100ms;
+$duration-150: 150ms;
+$duration-200: 200ms;
+$duration-300: 300ms;
+$duration-500: 500ms;
+$duration-700: 700ms;
+$duration-1000: 1000ms;
+
+// 缓动函数
+$ease-linear: linear;
+$ease-in: cubic-bezier(0.4, 0, 1, 1);
+$ease-out: cubic-bezier(0, 0, 0.2, 1);
+$ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+// 过渡组合
+$transition-fast: all $duration-150 $ease-out;
+$transition-base: all $duration-200 $ease-out;
+$transition-slow: all $duration-300 $ease-out;
+
+// =================================
+// 断点系统
+// =================================
+
+$breakpoint-xs: 480px;
+$breakpoint-sm: 768px;
+$breakpoint-md: 1024px;
+$breakpoint-lg: 1280px;
+$breakpoint-xl: 1536px;
+
+// =================================
+// Z-index 系统
+// =================================
+
+$z-index-dropdown: 1000;
+$z-index-sticky: 1020;
+$z-index-fixed: 1030;
+$z-index-modal-backdrop: 1040;
+$z-index-modal: 1050;
+$z-index-popover: 1060;
+$z-index-tooltip: 1070;
+
+// =================================
+// 业务特定变量
+// =================================
+
+// 表格
+$table-header-bg: $neutral-50;
+$table-row-hover-bg: $neutral-50;
+$table-border-color: $border-color;
+
+// 卡片
+$card-bg: #ffffff;
+$card-border-color: $border-color;
+$card-shadow: $shadow-sm;
+
+// 表单
+$form-control-bg: #ffffff;
+$form-control-border-color: $border-color;
+$form-control-focus-border-color: $primary-500;
+$form-control-focus-shadow: 0 0 0 3px rgba($primary-500, 0.1);
+
+// 按钮
+$button-font-weight: $font-weight-medium;
+$button-transition: $transition-fast;
+
+// 导航
+$nav-bg: #ffffff;
+$nav-border-color: $border-color;
+$nav-link-color: $text-secondary-color;
+$nav-link-hover-color: $primary-600;
+$nav-link-active-color: $primary-600;
+
+// 侧边栏
+$sidebar-bg: #ffffff;
+$sidebar-width: 16rem;  // 256px
+$sidebar-collapsed-width: 4rem;  // 64px
+
+// 图表
+$chart-grid-color: rgba($neutral-300, 0.5);
+$chart-axis-color: $neutral-400;
+$chart-tooltip-bg: rgba($neutral-900, 0.8);
+
+// 加载状态
+$loading-bg: rgba(255, 255, 255, 0.8);
+$skeleton-bg: $neutral-200;
+$skeleton-shimmer: $neutral-100;
+
+// =================================
+// 向后兼容别名 (用于element.scss等旧文件)
+// =================================
+
+// 间距别名
+$spacing-xs: $spacing-1;    // 4px
+$spacing-sm: $spacing-2;    // 8px
+$spacing-md: $spacing-4;    // 16px
+$spacing-lg: $spacing-6;    // 24px
+$spacing-xl: $spacing-8;    // 32px
+
+// 字体粗细别名
+$font-weight-regular: $font-weight-normal;
+
+// 为了与vite.config.ts中的'additionalData'兼容，确保此文件只包含变量和注释 

@@ -1,0 +1,190 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@quant-platform.com'
+  smtp_auth_username: 'alerts@quant-platform.com'
+  smtp_auth_password: 'your-email-password'
+
+# 告警路由配置
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'default-receiver'
+  routes:
+    # 关键告警立即发送
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 0s
+      repeat_interval: 5m
+    
+    # 交易相关告警
+    - match:
+        component: trading
+      receiver: 'trading-alerts'
+      group_wait: 30s
+      repeat_interval: 15m
+    
+    # CTP连接告警
+    - match:
+        component: ctp
+      receiver: 'ctp-alerts'
+      group_wait: 30s
+      repeat_interval: 10m
+    
+    # 系统资源告警
+    - match:
+        component: system
+      receiver: 'system-alerts'
+      group_wait: 1m
+      repeat_interval: 30m
+
+# 告警接收器配置
+receivers:
+  # 默认接收器
+  - name: 'default-receiver'
+    email_configs:
+      - to: 'admin@quant-platform.com'
+        subject: '[量化平台] {{ .GroupLabels.alertname }} 告警'
+        body: |
+          {{ range .Alerts }}
+          告警名称: {{ .Annotations.summary }}
+          告警描述: {{ .Annotations.description }}
+          告警级别: {{ .Labels.severity }}
+          组件: {{ .Labels.component }}
+          开始时间: {{ .StartsAt }}
+          {{ if .EndsAt }}结束时间: {{ .EndsAt }}{{ end }}
+          
+          标签:
+          {{ range .Labels.SortedPairs }}  {{ .Name }}: {{ .Value }}
+          {{ end }}
+          {{ end }}
+    
+    webhook_configs:
+      - url: 'http://quant-platform-backend:8000/api/v1/monitoring/alerts/webhook'
+        send_resolved: true
+
+  # 关键告警接收器
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'admin@quant-platform.com,ops@quant-platform.com'
+        subject: '[紧急] {{ .GroupLabels.alertname }} - 量化平台关键告警'
+        body: |
+          🚨 关键告警 🚨
+          
+          {{ range .Alerts }}
+          告警名称: {{ .Annotations.summary }}
+          告警描述: {{ .Annotations.description }}
+          告警级别: {{ .Labels.severity }}
+          组件: {{ .Labels.component }}
+          开始时间: {{ .StartsAt }}
+          
+          处理手册: {{ .Annotations.runbook_url }}
+          
+          标签:
+          {{ range .Labels.SortedPairs }}  {{ .Name }}: {{ .Value }}
+          {{ end }}
+          {{ end }}
+    
+    # 钉钉通知
+    webhook_configs:
+      - url: 'https://oapi.dingtalk.com/robot/send?access_token=YOUR_DINGTALK_TOKEN'
+        send_resolved: true
+        http_config:
+          proxy_url: ''
+        title: '量化平台关键告警'
+        text: |
+          ## 🚨 关键告警
+          
+          **告警名称**: {{ .GroupLabels.alertname }}
+          
+          {{ range .Alerts }}
+          **描述**: {{ .Annotations.description }}
+          **级别**: {{ .Labels.severity }}
+          **组件**: {{ .Labels.component }}
+          **时间**: {{ .StartsAt }}
+          {{ end }}
+
+  # 交易告警接收器
+  - name: 'trading-alerts'
+    email_configs:
+      - to: 'trading@quant-platform.com'
+        subject: '[交易告警] {{ .GroupLabels.alertname }}'
+        body: |
+          💹 交易系统告警
+          
+          {{ range .Alerts }}
+          告警名称: {{ .Annotations.summary }}
+          告警描述: {{ .Annotations.description }}
+          告警级别: {{ .Labels.severity }}
+          开始时间: {{ .StartsAt }}
+          
+          {{ if .Labels.symbol }}交易品种: {{ .Labels.symbol }}{{ end }}
+          {{ if .Labels.order_id }}订单ID: {{ .Labels.order_id }}{{ end }}
+          {{ if .Labels.strategy_id }}策略ID: {{ .Labels.strategy_id }}{{ end }}
+          
+          处理手册: {{ .Annotations.runbook_url }}
+          {{ end }}
+
+  # CTP连接告警接收器
+  - name: 'ctp-alerts'
+    email_configs:
+      - to: 'ops@quant-platform.com'
+        subject: '[CTP告警] {{ .GroupLabels.alertname }}'
+        body: |
+          🔌 CTP连接告警
+          
+          {{ range .Alerts }}
+          告警名称: {{ .Annotations.summary }}
+          告警描述: {{ .Annotations.description }}
+          连接类型: {{ .Labels.connection_type }}
+          告警级别: {{ .Labels.severity }}
+          开始时间: {{ .StartsAt }}
+          
+          处理手册: {{ .Annotations.runbook_url }}
+          {{ end }}
+
+  # 系统资源告警接收器
+  - name: 'system-alerts'
+    email_configs:
+      - to: 'ops@quant-platform.com'
+        subject: '[系统告警] {{ .GroupLabels.alertname }}'
+        body: |
+          🖥️ 系统资源告警
+          
+          {{ range .Alerts }}
+          告警名称: {{ .Annotations.summary }}
+          告警描述: {{ .Annotations.description }}
+          告警级别: {{ .Labels.severity }}
+          开始时间: {{ .StartsAt }}
+          
+          处理手册: {{ .Annotations.runbook_url }}
+          {{ end }}
+
+# 告警抑制规则
+inhibit_rules:
+  # 当系统宕机时，抑制其他所有告警
+  - source_match:
+      alertname: SystemDown
+    target_match_re:
+      alertname: .*
+    equal: ['instance']
+  
+  # 当CTP连接断开时，抑制相关的交易告警
+  - source_match:
+      alertname: CTPConnectionDown
+    target_match:
+      component: trading
+    equal: ['instance']
+  
+  # 当有关键告警时，抑制同类型的警告级别告警
+  - source_match:
+      severity: critical
+    target_match:
+      severity: warning
+    equal: ['alertname', 'instance']
+
+# 告警模板
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

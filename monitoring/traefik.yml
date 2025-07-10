@@ -1,0 +1,49 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+api:
+  dashboard: true
+  insecure: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: quant-monitoring
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: admin@quant-platform.com
+      storage: /acme.json
+      httpChallenge:
+        entryPoint: web
+
+# 访问日志
+accessLog:
+  filePath: "/var/log/traefik/access.log"
+  format: json
+
+# 应用日志
+log:
+  level: INFO
+  filePath: "/var/log/traefik/traefik.log"
+  format: json
+
+# 指标
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    addRoutersLabels: true
+
+# 健康检查
+ping:
+  entryPoint: "web"

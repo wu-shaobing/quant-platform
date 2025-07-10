@@ -1,0 +1,13 @@
+# Grafana仪表板配置
+apiVersion: 1
+
+providers:
+  - name: 'CTP Dashboards'
+    orgId: 1
+    folder: 'CTP'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/json

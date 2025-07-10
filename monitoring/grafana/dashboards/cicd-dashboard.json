@@ -1,0 +1,243 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "CI/CD Pipeline Dashboard",
+    "tags": ["cicd", "deployment", "monitoring"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Deployment Success Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(deployment_total{status=\"success\"}[24h]) / rate(deployment_total[24h]) * 100",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 80},
+                {"color": "green", "value": 95}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Average Deployment Time",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "avg(deployment_duration_seconds)",
+            "legendFormat": "Avg Duration"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 300},
+                {"color": "red", "value": 600}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Failed Deployments (24h)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(deployment_total{status=\"failure\"}[24h]))",
+            "legendFormat": "Failed"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 3}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Current Pipeline Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "pipeline_status",
+            "legendFormat": "{{pipeline}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"options": {"0": {"text": "Failed", "color": "red"}}},
+              {"options": {"1": {"text": "Success", "color": "green"}}},
+              {"options": {"2": {"text": "Running", "color": "yellow"}}}
+            ]
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "Deployment Frequency",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(deployment_total[1h])) by (environment)",
+            "legendFormat": "{{environment}}"
+          }
+        ],
+        "yAxes": [
+          {"label": "Deployments/hour", "min": 0}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "Test Coverage Trend",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "test_coverage_percentage",
+            "legendFormat": "{{component}}"
+          }
+        ],
+        "yAxes": [
+          {"label": "Coverage %", "min": 0, "max": 100}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "Build Duration by Stage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "avg(build_stage_duration_seconds) by (stage)",
+            "legendFormat": "{{stage}}"
+          }
+        ],
+        "yAxes": [
+          {"label": "Duration (s)", "min": 0}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "Security Scan Results",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "security_vulnerabilities",
+            "format": "table"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {},
+              "indexByName": {},
+              "renameByName": {
+                "severity": "Severity",
+                "count": "Count",
+                "component": "Component"
+              }
+            }
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 9,
+        "title": "Recent Deployments",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{job=\"deployment-logs\"}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "sortOrder": "Descending"
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24}
+      },
+      {
+        "id": 10,
+        "title": "Pipeline Performance Metrics",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(pipeline_duration_seconds_bucket[5m])) by (le, pipeline))",
+            "legendFormat": "{{pipeline}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32}
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "environment",
+          "type": "query",
+          "query": "label_values(deployment_total, environment)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true
+        },
+        {
+          "name": "pipeline",
+          "type": "query",
+          "query": "label_values(pipeline_duration_seconds, pipeline)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "datasource": "Prometheus",
+          "expr": "deployment_total",
+          "titleFormat": "Deployment: {{environment}}",
+          "textFormat": "{{status}} - {{commit_sha}}",
+          "iconColor": "green"
+        }
+      ]
+    }
+  }
+}

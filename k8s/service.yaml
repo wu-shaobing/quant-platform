@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: quant-platform-backend-service
+  namespace: ${NAMESPACE}
+  labels:
+    app: quant-platform-backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: metrics
+  selector:
+    app: quant-platform-backend
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quant-platform-frontend-service
+  namespace: ${NAMESPACE}
+  labels:
+    app: quant-platform-frontend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    app: quant-platform-frontend
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quant-platform-redis-service
+  namespace: ${NAMESPACE}
+  labels:
+    app: quant-platform-redis
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6379
+    targetPort: 6379
+    protocol: TCP
+    name: redis
+  selector:
+    app: quant-platform-redis
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quant-platform-backend-headless
+  namespace: ${NAMESPACE}
+  labels:
+    app: quant-platform-backend
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: quant-platform-backend
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quant-platform-metrics
+  namespace: ${NAMESPACE}
+  labels:
+    app: quant-platform-backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: metrics
+  selector:
+    app: quant-platform-backend

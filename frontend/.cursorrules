@@ -1,0 +1,598 @@
+# 量化投资前端平台开发规范 - Cursor Rules
+
+## 🎯 项目概述
+这是一个基于 Vue 3 + TypeScript 的量化投资前端可视化平台，提供策略监控、回测分析、实时交易的专业界面。
+
+## 📋 核心开发原则
+
+### 1. 架构遵从原则
+- 严格遵循分层架构：表现层 → 业务逻辑层 → 数据访问层 → 基础设施层
+- 组件职责单一，高内聚、低耦合
+- 业务逻辑与UI逻辑分离，优先使用组合式函数封装
+
+### 2. 技术栈要求
+- **前端框架**: Vue 3 (组合式API) + TypeScript 5.0+
+- **构建工具**: Vite 5.0+
+- **UI组件库**: Element Plus 2.4+
+- **图表库**: ECharts 5.4+ (专业金融图表)
+- **状态管理**: Pinia 2.1+
+- **样式**: Tailwind CSS 3.3+ + SCSS
+- **路由**: Vue Router 4.2+
+
+## 🏗️ 项目结构规范
+
+### 目录命名规则
+```
+src/
+├── api/                    # API接口层 (kebab-case)
+├── assets/                 # 静态资源
+├── components/             # 通用组件 (PascalCase)
+├── composables/            # 组合式函数 (camelCase, use前缀)
+├── layouts/                # 布局组件 (PascalCase)
+├── router/                 # 路由配置
+├── stores/                 # 状态管理 (camelCase)
+├── types/                  # 类型定义 (camelCase)
+├── utils/                  # 工具函数 (camelCase)
+├── views/                  # 页面视图 (PascalCase + View后缀)
+└── workers/                # Web Workers
+```
+
+### 组件分层设计
+```
+components/
+├── common/                 # 通用基础组件
+├── charts/                 # 图表组件 (金融专用)
+├── trading/                # 交易功能组件
+├── market/                 # 行情功能组件
+├── strategy/               # 策略功能组件
+├── backtest/               # 回测功能组件
+├── layout/                 # 布局组件
+└── widgets/                # 小部件组件
+```
+
+## 💻 代码编写规范
+
+### Vue 组件标准结构
+```vue
+<template>
+  <!-- 使用 kebab-case 命名 -->
+  <div class="component-name">
+    <component-child 
+      :prop-name="propValue"
+      @event-name="handleEvent"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+// 1. 导入顺序：Vue相关 → 第三方库 → 项目内部
+import { ref, computed, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { useComposable } from '@/composables/useComposable'
+
+// 2. 接口定义
+interface Props {
+  propName: string
+  optionalProp?: number
+}
+
+interface Emits {
+  (e: 'event-name', value: string): void
+}
+
+// 3. Props 和 Emits
+const props = withDefaults(defineProps<Props>(), {
+  optionalProp: 0
+})
+
+const emit = defineEmits<Emits>()
+
+// 4. 响应式数据
+const loading = ref(false)
+const data = ref<DataType[]>([])
+
+// 5. 计算属性
+const computedValue = computed(() => {
+  return props.propName.toUpperCase()
+})
+
+// 6. 组合式函数
+const { method1, method2 } = useComposable()
+
+// 7. 方法定义
+const handleEvent = (value: string) => {
+  emit('event-name', value)
+}
+
+// 8. 生命周期
+onMounted(() => {
+  // 初始化逻辑
+})
+</script>
+
+<style scoped>
+.component-name {
+  @apply flex flex-col bg-white rounded-lg shadow-financial;
+}
+</style>
+```
+
+### 组合式函数标准结构
+```typescript
+// src/composables/useExample.ts
+import { ref, computed, onUnmounted } from 'vue'
+
+export const useExample = (param?: string) => {
+  // 1. 响应式状态
+  const loading = ref(false)
+  const data = ref<DataType[]>([])
+  const error = ref<string | null>(null)
+
+  // 2. 计算属性
+  const processedData = computed(() => {
+    return data.value.map(item => ({
+      ...item,
+      processed: true
+    }))
+  })
+
+  // 3. 方法定义
+  const fetchData = async () => {
+    try {
+      loading.value = true
+      error.value = null
+      // 获取数据逻辑
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '未知错误'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const resetData = () => {
+    data.value = []
+    error.value = null
+  }
+
+  // 4. 清理逻辑
+  onUnmounted(() => {
+    // 清理资源
+  })
+
+  // 5. 返回接口
+  return {
+    // 状态
+    loading: readonly(loading),
+    data: readonly(data),
+    error: readonly(error),
+    
+    // 计算属性
+    processedData,
+    
+    // 方法
+    fetchData,
+    resetData
+  }
+}
+```
+
+### Pinia Store 标准结构
+```typescript
+// src/stores/modules/example.ts
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+
+export const useExampleStore = defineStore('example', () => {
+  // 1. 状态定义
+  const items = ref<ItemType[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+
+  // 2. 计算属性 (Getters)
+  const itemCount = computed(() => items.value.length)
+  const hasItems = computed(() => itemCount.value > 0)
+
+  // 3. 操作方法 (Actions)
+  const fetchItems = async () => {
+    try {
+      loading.value = true
+      error.value = null
+      // API 调用
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '获取数据失败'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const addItem = (item: ItemType) => {
+    items.value.push(item)
+  }
+
+  const removeItem = (id: string) => {
+    const index = items.value.findIndex(item => item.id === id)
+    if (index > -1) {
+      items.value.splice(index, 1)
+    }
+  }
+
+  const clearItems = () => {
+    items.value = []
+    error.value = null
+  }
+
+  // 4. 返回接口
+  return {
+    // 状态
+    items,
+    loading,
+    error,
+    
+    // 计算属性
+    itemCount,
+    hasItems,
+    
+    // 操作
+    fetchItems,
+    addItem,
+    removeItem,
+    clearItems
+  }
+})
+```
+
+## 📊 金融业务规范
+
+### 1. 数据格式化
+```typescript
+// 价格格式化 - 保留2位小数
+const formatPrice = (price: number): string => {
+  return price.toFixed(2)
+}
+
+// 货币格式化 - 添加千分位分隔符
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('zh-CN', {
+    style: 'currency',
+    currency: 'CNY'
+  }).format(amount)
+}
+
+// 百分比格式化
+const formatPercent = (value: number): string => {
+  return `${(value * 100).toFixed(2)}%`
+}
+
+// 涨跌幅颜色类
+const getPriceChangeClass = (change: number) => {
+  if (change > 0) return 'text-financial-up'
+  if (change < 0) return 'text-financial-down'
+  return 'text-financial-neutral'
+}
+```
+
+### 2. 交易验证规则
+```typescript
+// 交易数量验证 - 必须是100的倍数
+const validateQuantity = (quantity: number): boolean => {
+  return quantity > 0 && quantity % 100 === 0
+}
+
+// 价格验证 - 涨跌停限制
+const validatePrice = (price: number, lastPrice: number): boolean => {
+  const limitUp = lastPrice * 1.1
+  const limitDown = lastPrice * 0.9
+  return price >= limitDown && price <= limitUp
+}
+
+// 资金验证
+const validateFunds = (amount: number, availableFunds: number): boolean => {
+  return amount <= availableFunds
+}
+```
+
+### 3. 实时数据处理
+```typescript
+// WebSocket 数据更新
+const handleQuoteUpdate = (data: QuoteData) => {
+  // 1. 数据验证
+  if (!data.symbol || !data.price) return
+  
+  // 2. 价格闪烁效果
+  triggerPriceFlash(data.symbol, data.change > 0 ? 'up' : 'down')
+  
+  // 3. 更新存储
+  marketStore.updateQuote(data.symbol, data)
+  
+  // 4. 触发相关计算
+  updatePortfolioValue()
+}
+```
+
+## 🎨 UI/UX 设计规范
+
+### 1. 颜色使用
+```scss
+// 金融专用色彩
+.price-up { color: theme('colors.financial.up'); }      // 上涨红色
+.price-down { color: theme('colors.financial.down'); }  // 下跌绿色
+.price-neutral { color: theme('colors.financial.neutral'); } // 平盘灰色
+
+// 背景色
+.bg-trading { background: theme('colors.financial.bg-primary'); }
+.bg-secondary { background: theme('colors.financial.bg-secondary'); }
+```
+
+### 2. 响应式设计
+```vue
+<template>
+  <!-- 桌面端布局 -->
+  <div class="hidden lg:flex">
+    <desktop-layout />
+  </div>
+  
+  <!-- 移动端布局 -->
+  <div class="lg:hidden">
+    <mobile-layout />
+  </div>
+</template>
+```
+
+### 3. 加载状态
+```vue
+<template>
+  <div v-loading="loading" element-loading-text="加载中...">
+    <div v-if="error" class="error-state">
+      <el-alert :title="error" type="error" />
+    </div>
+    <div v-else-if="!data.length" class="empty-state">
+      <el-empty description="暂无数据" />
+    </div>
+    <div v-else>
+      <!-- 数据展示 -->
+    </div>
+  </div>
+</template>
+```
+
+## 🔧 性能优化规范
+
+### 1. 图表性能
+```typescript
+// 使用 Canvas 渲染大数据量图表
+const chartOption = {
+  renderer: 'canvas',
+  useDirtyRect: true,
+  animation: false // 关闭动画提升性能
+}
+
+// 数据分片渲染
+const renderChartData = (data: KLineData[]) => {
+  const chunkSize = 1000
+  const chunks = chunk(data, chunkSize)
+  
+  chunks.forEach((chunk, index) => {
+    setTimeout(() => {
+      updateChartSeries(chunk, index)
+    }, index * 16) // 16ms 间隔
+  })
+}
+```
+
+### 2. 虚拟滚动
+```vue
+<template>
+  <virtual-list
+    :data="largeDataSet"
+    :item-height="40"
+    :container-height="400"
+    :buffer-size="5"
+  >
+    <template #item="{ item }">
+      <stock-item :data="item" />
+    </template>
+  </virtual-list>
+</template>
+```
+
+### 3. 防抖节流
+```typescript
+// 搜索防抖
+const debouncedSearch = debounce(async (keyword: string) => {
+  await searchStocks(keyword)
+}, 300)
+
+// 滚动节流
+const throttledScroll = throttle((event: Event) => {
+  handleScroll(event)
+}, 16)
+```
+
+## 🔒 安全规范
+
+### 1. XSS 防护
+```typescript
+import DOMPurify from 'dompurify'
+
+// 清理用户输入
+const sanitizeInput = (input: string): string => {
+  return DOMPurify.sanitize(input)
+}
+
+// 安全渲染 HTML
+const safeHtml = (html: string): string => {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong'],
+    ALLOWED_ATTR: []
+  })
+}
+```
+
+### 2. Token 管理
+```typescript
+// Token 自动刷新
+const refreshTokenIfNeeded = async () => {
+  const token = getAccessToken()
+  if (token && shouldRefreshToken(token)) {
+    await refreshToken()
+  }
+}
+```
+
+## 🧪 测试规范
+
+### 1. 组件测试
+```typescript
+// 测试文件命名: ComponentName.spec.ts
+describe('KLineChart', () => {
+  it('should render chart with data', () => {
+    const wrapper = mount(KLineChart, {
+      props: { symbol: '000001.SZ' }
+    })
+    expect(wrapper.find('.chart-container').exists()).toBe(true)
+  })
+})
+```
+
+### 2. 组合式函数测试
+```typescript
+describe('useMarketData', () => {
+  it('should fetch market data', async () => {
+    const { fetchData, data, loading } = useMarketData()
+    
+    expect(loading.value).toBe(false)
+    await fetchData('000001.SZ')
+    expect(data.value).toBeDefined()
+  })
+})
+```
+
+## ❌ 禁止事项
+
+### 1. 代码质量
+- ❌ 不允许使用 `any` 类型，必须明确类型定义
+- ❌ 不允许在组件中直接调用 API，必须通过 composables
+- ❌ 不允许在 template 中写复杂逻辑，应提取到 computed
+- ❌ 不允许使用 Options API，统一使用 Composition API
+
+### 2. 性能相关
+- ❌ 不允许在 v-for 中使用 index 作为 key
+- ❌ 不允许在组件中直接操作 DOM，使用 ref 或指令
+- ❌ 不允许在 watch 中执行耗时操作而不做防抖处理
+
+### 3. 安全相关
+- ❌ 不允许直接渲染用户输入的 HTML
+- ❌ 不允许在 localStorage 中存储敏感信息
+- ❌ 不允许在前端硬编码 API 密钥
+
+### 4. 业务相关
+- ❌ 不允许在前端进行金融计算的最终确认
+- ❌ 不允许绕过后端验证直接提交交易
+- ❌ 不允许在客户端缓存敏感的交易数据
+
+## ✅ 最佳实践
+
+### 1. 组件设计
+```vue
+<!-- ✅ 好的组件设计 -->
+<template>
+  <div class="stock-card">
+    <stock-header :stock="stock" />
+    <stock-price :price="stock.price" :change="stock.change" />
+    <slot name="actions" :stock="stock" />
+  </div>
+</template>
+
+<script setup lang="ts">
+interface Props {
+  stock: StockInfo
+  readonly?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  readonly: false
+})
+
+// 单一职责：只处理显示逻辑
+const priceClass = computed(() => ({
+  'text-financial-up': props.stock.change > 0,
+  'text-financial-down': props.stock.change < 0
+}))
+</script>
+```
+
+### 2. 错误处理
+```typescript
+// ✅ 统一错误处理
+const handleApiError = (error: unknown) => {
+  if (error instanceof Error) {
+    ElMessage.error(error.message)
+  } else {
+    ElMessage.error('操作失败，请重试')
+  }
+  
+  // 上报错误
+  errorReporting.captureException(error)
+}
+```
+
+### 3. 类型定义
+```typescript
+// ✅ 完整的类型定义
+interface StockInfo {
+  symbol: string
+  name: string
+  currentPrice: number
+  change: number
+  changePercent: number
+  volume: number
+  marketCap: number
+  pe?: number
+  pb?: number
+}
+
+interface ApiResponse<T> {
+  code: number
+  message: string
+  data: T
+  timestamp: number
+}
+```
+
+## 📝 代码审查清单
+
+### 提交前检查
+- [ ] 代码是否遵循 TypeScript 严格模式
+- [ ] 组件是否有适当的 Props 类型定义
+- [ ] 是否有未处理的 Promise 错误
+- [ ] 是否有内存泄漏风险（事件监听器、定时器等）
+- [ ] 是否遵循响应式设计原则
+- [ ] 是否有适当的加载和错误状态
+- [ ] 金融数据格式化是否正确
+- [ ] 是否有安全风险（XSS、数据泄露等）
+
+### 性能检查
+- [ ] 大列表是否使用虚拟滚动
+- [ ] 图表是否针对大数据量优化
+- [ ] 是否有不必要的重复渲染
+- [ ] WebSocket 连接是否正确管理
+- [ ] 是否有内存泄漏
+
+### 业务逻辑检查
+- [ ] 交易验证逻辑是否完整
+- [ ] 价格计算是否精确
+- [ ] 风险控制是否到位
+- [ ] 用户权限是否正确验证
+
+---
+
+## 🎯 开发目标
+
+遵循以上规范，构建一个：
+- **高性能**: 毫秒级响应，流畅的用户体验
+- **高可靠**: 稳定的实时数据处理，准确的金融计算
+- **高安全**: 完善的安全防护，保护用户资产安全
+- **高可维护**: 清晰的代码结构，完善的类型定义
+- **高扩展**: 模块化设计，易于功能扩展
+
+记住：我们在构建的不仅是一个前端应用，而是一个专业的金融交易平台，每一行代码都关乎用户的资产安全。

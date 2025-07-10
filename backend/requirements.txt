@@ -1,0 +1,78 @@
+# FastAPI核心
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+gunicorn==21.2.0
+
+# 数据库
+sqlalchemy==2.0.23
+asyncpg==0.29.0
+psycopg2-binary==2.9.9; python_version < "3.13"
+psycopg2==2.9.9; python_version >= "3.13"
+aiosqlite==0.19.0
+alembic==1.12.1
+
+# 数据处理和量化分析
+pandas>=2.2.0
+numpy>=1.26.0
+scipy>=1.11.4
+scikit-learn>=1.3.2
+
+# 认证授权和安全
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+cryptography>=41.0.0
+
+# HTTP客户端
+httpx==0.25.2
+aiohttp
+
+# 配置管理
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Redis和缓存
+redis==5.0.1
+
+# 消息队列
+celery==5.3.4
+
+# 日志和监控
+structlog==23.2.0
+psutil==5.9.8
+
+# 安全
+cryptography==41.0.7
+bcrypt==4.1.2
+
+# 时间处理
+python-dateutil==2.8.2
+pytz==2023.3
+
+# 环境变量
+python-dotenv==1.0.0
+
+# 工具库
+tenacity==8.2.3  # 重试机制
+click==8.1.7     # 命令行工具
+
+# 技术指标
+ta==0.11.0
+
+# 测试
+pytest==7.4.3
+pytest-asyncio==0.21.1
+
+# 验证码
+captcha==0.5
+
+# 新增 dependencies
+fastapi-limiter==0.1.6
+websockets==12.0
+
+# Added from the code block
+Pillow==10.4.0
+
+# CTP交易接口
+vnpy==3.9.1
+vnpy-ctp==6.7.2.0

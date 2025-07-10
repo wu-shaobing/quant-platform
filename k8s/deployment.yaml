@@ -1,0 +1,294 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quant-platform-backend
+  namespace: ${NAMESPACE}
+  labels:
+    app: quant-platform-backend
+    version: ${IMAGE_TAG}
+spec:
+  replicas: ${REPLICAS}
+  selector:
+    matchLabels:
+      app: quant-platform-backend
+  template:
+    metadata:
+      labels:
+        app: quant-platform-backend
+        version: ${IMAGE_TAG}
+    spec:
+      containers:
+      - name: backend
+        image: ${DOCKER_REGISTRY}/quant-platform-backend:${IMAGE_TAG}
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: CTP_ENVIRONMENT
+          value: "production"
+        - name: CTP_DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: ctp-secrets
+              key: database-url
+        - name: CTP_REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: ctp-secrets
+              key: redis-url
+        - name: CTP_ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ctp-secrets
+              key: encryption-key
+        - name: CTP_JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ctp-secrets
+              key: jwt-secret
+        envFrom:
+        - configMapRef:
+            name: ctp-config
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: logs
+          mountPath: /var/log/quant-platform
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: logs
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quant-platform-frontend
+  namespace: ${NAMESPACE}
+  labels:
+    app: quant-platform-frontend
+    version: ${IMAGE_TAG}
+spec:
+  replicas: ${REPLICAS}
+  selector:
+    matchLabels:
+      app: quant-platform-frontend
+  template:
+    metadata:
+      labels:
+        app: quant-platform-frontend
+        version: ${IMAGE_TAG}
+    spec:
+      containers:
+      - name: frontend
+        image: ${DOCKER_REGISTRY}/quant-platform-frontend:${IMAGE_TAG}
+        ports:
+        - containerPort: 80
+          name: http
+        env:
+        - name: VITE_API_BASE_URL
+          value: "https://api.your-domain.com"
+        - name: VITE_WS_BASE_URL
+          value: "wss://api.your-domain.com"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 10
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quant-platform-redis
+  namespace: ${NAMESPACE}
+  labels:
+    app: quant-platform-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quant-platform-redis
+  template:
+    metadata:
+      labels:
+        app: quant-platform-redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+          name: redis
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ctp-secrets
+              key: redis-password
+              optional: true
+        command:
+        - redis-server
+        - --requirepass
+        - $(REDIS_PASSWORD)
+        - --maxmemory
+        - 1gb
+        - --maxmemory-policy
+        - allkeys-lru
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: redis-pvc
+      restartPolicy: Always
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: ${NAMESPACE}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: database-backup
+  namespace: ${NAMESPACE}
+spec:
+  schedule: "0 2 * * *"  # 每天凌晨2点
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup
+            image: postgres:15-alpine
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ctp-secrets
+                  key: database-password
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ctp-secrets
+                  key: database-url
+            command:
+            - /bin/sh
+            - -c
+            - |
+              BACKUP_FILE="/backup/db_backup_$(date +%Y%m%d_%H%M%S).sql"
+              pg_dump $DATABASE_URL > $BACKUP_FILE
+              echo "Database backup completed: $BACKUP_FILE"
+              # 清理30天前的备份
+              find /backup -name "db_backup_*.sql" -mtime +30 -delete
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: backup-pvc
+          restartPolicy: OnFailure
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-pvc
+  namespace: ${NAMESPACE}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: standard

@@ -1,0 +1,146 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quant-platform-config
+  namespace: quant-platform-dev
+  labels:
+    app: quant-platform
+    environment: development
+data:
+  # 应用配置
+  CTP_ENVIRONMENT: "development"
+  CTP_LOG_LEVEL: "DEBUG"
+  CTP_METRICS_ENABLED: "true"
+  CTP_ALERT_ENABLED: "true"
+  CTP_TESTING: "false"
+  
+  # 数据库配置
+  DATABASE_HOST: "postgres-dev"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "quant_platform_dev"
+  DATABASE_USER: "quant_dev_user"
+  
+  # Redis配置
+  REDIS_HOST: "redis-dev"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  
+  # CTP配置
+  CTP_FRONT_ADDR: "tcp://180.168.146.187:10130"
+  CTP_MD_FRONT_ADDR: "tcp://180.168.146.187:10131"
+  CTP_BROKER_ID: "9999"
+  CTP_APP_ID: "simnow_client_test"
+  CTP_AUTH_CODE: "0000000000000000"
+  
+  # 监控配置
+  PROMETHEUS_PORT: "9090"
+  METRICS_PATH: "/metrics"
+  
+  # 日志配置
+  LOG_FORMAT: "json"
+  LOG_ROTATION: "daily"
+  LOG_RETENTION_DAYS: "7"
+  
+  # API配置
+  API_V1_PREFIX: "/api/v1"
+  CORS_ORIGINS: "http://localhost:3000,https://dev.quant-platform.com"
+  
+  # WebSocket配置
+  WS_HEARTBEAT_INTERVAL: "30"
+  WS_MAX_CONNECTIONS: "1000"
+  
+  # 安全配置
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_REQUESTS: "100"
+  RATE_LIMIT_WINDOW: "60"
+  
+  # 前端配置
+  VITE_API_BASE_URL: "https://api-dev.quant-platform.com/api/v1"
+  VITE_WS_URL: "wss://api-dev.quant-platform.com/ws"
+  VITE_ENVIRONMENT: "development"
+  VITE_LOG_LEVEL: "debug"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: quant-platform-dev
+  labels:
+    app: quant-platform
+    component: frontend
+data:
+  nginx.conf: |
+    user nginx;
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+
+    events {
+        worker_connections 1024;
+        use epoll;
+        multi_accept on;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for"';
+
+        access_log /var/log/nginx/access.log main;
+
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_proxied any;
+        gzip_comp_level 6;
+        gzip_types
+            text/plain
+            text/css
+            text/xml
+            text/javascript
+            application/json
+            application/javascript
+            application/xml+rss
+            application/atom+xml
+            image/svg+xml;
+
+        server {
+            listen 80;
+            server_name _;
+            root /usr/share/nginx/html;
+            index index.html;
+
+            # 安全头
+            add_header X-Frame-Options "SAMEORIGIN" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header X-XSS-Protection "1; mode=block" always;
+            add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+            # 静态资源缓存
+            location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+                expires 1y;
+                add_header Cache-Control "public, immutable";
+            }
+
+            # SPA路由支持
+            location / {
+                try_files $uri $uri/ /index.html;
+            }
+
+            # 健康检查
+            location /health {
+                access_log off;
+                return 200 "healthy\n";
+                add_header Content-Type text/plain;
+            }
+        }
+    }

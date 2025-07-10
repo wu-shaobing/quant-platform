@@ -1,0 +1,270 @@
+name: Deployment Notifications
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline", "CD Pipeline"]
+    types:
+      - completed
+
+jobs:
+  notify-slack:
+    name: Notify Slack
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Get workflow conclusion
+        id: workflow
+        run: |
+          echo "conclusion=${{ github.event.workflow_run.conclusion }}" >> $GITHUB_OUTPUT
+          echo "workflow_name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
+          echo "branch=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
+          echo "commit=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+
+      - name: Notify Slack on Success
+        if: github.event.workflow_run.conclusion == 'success'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          custom_payload: |
+            {
+              "text": "✅ ${{ steps.workflow.outputs.workflow_name }} 成功",
+              "attachments": [
+                {
+                  "color": "good",
+                  "fields": [
+                    {
+                      "title": "Repository",
+                      "value": "${{ github.repository }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Branch",
+                      "value": "${{ steps.workflow.outputs.branch }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Commit",
+                      "value": "${{ steps.workflow.outputs.commit }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Workflow",
+                      "value": "${{ steps.workflow.outputs.workflow_name }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Status",
+                      "value": "Success",
+                      "short": true
+                    },
+                    {
+                      "title": "Duration",
+                      "value": "${{ github.event.workflow_run.run_attempt }}",
+                      "short": true
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "button",
+                      "text": "View Workflow",
+                      "url": "${{ github.event.workflow_run.html_url }}"
+                    }
+                  ]
+                }
+              ]
+            }
+
+      - name: Notify Slack on Failure
+        if: github.event.workflow_run.conclusion == 'failure'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          channel: '#alerts'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          custom_payload: |
+            {
+              "text": "❌ ${{ steps.workflow.outputs.workflow_name }} 失败",
+              "attachments": [
+                {
+                  "color": "danger",
+                  "fields": [
+                    {
+                      "title": "Repository",
+                      "value": "${{ github.repository }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Branch",
+                      "value": "${{ steps.workflow.outputs.branch }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Commit",
+                      "value": "${{ steps.workflow.outputs.commit }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Workflow",
+                      "value": "${{ steps.workflow.outputs.workflow_name }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Status",
+                      "value": "Failed",
+                      "short": true
+                    },
+                    {
+                      "title": "Attempt",
+                      "value": "${{ github.event.workflow_run.run_attempt }}",
+                      "short": true
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "button",
+                      "text": "View Workflow",
+                      "url": "${{ github.event.workflow_run.html_url }}"
+                    },
+                    {
+                      "type": "button",
+                      "text": "View Logs",
+                      "url": "${{ github.event.workflow_run.logs_url }}"
+                    }
+                  ]
+                }
+              ]
+            }
+
+  notify-email:
+    name: Notify Email
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch == 'main'
+
+    steps:
+      - name: Send Email Notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "🚨 Production Deployment Failed - ${{ github.repository }}"
+          to: ${{ secrets.ALERT_EMAIL }}
+          from: "CI/CD Pipeline <${{ secrets.SMTP_USERNAME }}>"
+          html_body: |
+            <h2>🚨 Production Deployment Failed</h2>
+            <p><strong>Repository:</strong> ${{ github.repository }}</p>
+            <p><strong>Branch:</strong> ${{ github.event.workflow_run.head_branch }}</p>
+            <p><strong>Commit:</strong> ${{ github.event.workflow_run.head_sha }}</p>
+            <p><strong>Workflow:</strong> ${{ github.event.workflow_run.name }}</p>
+            <p><strong>Status:</strong> Failed</p>
+            <p><strong>Time:</strong> ${{ github.event.workflow_run.created_at }}</p>
+            
+            <h3>Actions Required:</h3>
+            <ul>
+              <li>Check the workflow logs for error details</li>
+              <li>Verify the deployment configuration</li>
+              <li>Consider rolling back if necessary</li>
+            </ul>
+            
+            <p><a href="${{ github.event.workflow_run.html_url }}">View Workflow Details</a></p>
+
+  update-deployment-status:
+    name: Update Deployment Status
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update deployment record
+        run: |
+          # 创建部署记录
+          cat > deployment_record.json << EOF
+          {
+            "deployment_id": "${{ github.event.workflow_run.id }}",
+            "workflow_name": "${{ github.event.workflow_run.name }}",
+            "commit_sha": "${{ github.event.workflow_run.head_sha }}",
+            "branch": "${{ github.event.workflow_run.head_branch }}",
+            "status": "${{ github.event.workflow_run.conclusion }}",
+            "started_at": "${{ github.event.workflow_run.created_at }}",
+            "completed_at": "${{ github.event.workflow_run.updated_at }}",
+            "actor": "${{ github.event.workflow_run.actor.login }}",
+            "repository": "${{ github.repository }}",
+            "environment": "${{ github.event.workflow_run.head_branch == 'main' && 'production' || 'development' }}"
+          }
+          EOF
+          
+          echo "Deployment record created:"
+          cat deployment_record.json
+
+      - name: Send to monitoring system
+        if: github.event.workflow_run.conclusion == 'success'
+        run: |
+          # 发送部署记录到监控系统
+          curl -X POST "https://monitoring.quant-platform.com/api/deployments" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.MONITORING_API_TOKEN }}" \
+            -d @deployment_record.json || echo "Failed to send to monitoring system"
+
+  create-github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.name == 'CD Pipeline'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # 获取上一个标签
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -z "$LAST_TAG" ]; then
+            # 如果没有标签，获取所有提交
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            # 获取自上一个标签以来的提交
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          # 生成发布说明
+          cat > release_notes.md << EOF
+          ## 🚀 Production Deployment
+          
+          **Commit:** ${{ github.event.workflow_run.head_sha }}
+          **Branch:** ${{ github.event.workflow_run.head_branch }}
+          **Deployed at:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          ### 📋 Changes in this release:
+          $COMMITS
+          
+          ### 🔧 Deployment Information:
+          - **Environment:** Production
+          - **Workflow:** ${{ github.event.workflow_run.name }}
+          - **Status:** Success
+          - **Duration:** ${{ github.event.workflow_run.run_attempt }}
+          
+          ### 🔗 Links:
+          - [Workflow Run](${{ github.event.workflow_run.html_url }})
+          - [Commit Details](https://github.com/${{ github.repository }}/commit/${{ github.event.workflow_run.head_sha }})
+          EOF
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v${{ github.run_number }}-${{ github.event.workflow_run.head_sha }}"
+          release_name: "Production Release v${{ github.run_number }}"
+          body_path: release_notes.md
+          draft: false
+          prerelease: false

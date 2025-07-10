@@ -1,0 +1,292 @@
+# Prometheus告警规则
+groups:
+  # CTP连接告警
+  - name: ctp_connection_alerts
+    rules:
+      - alert: CTPConnectionDown
+        expr: ctp_connection_status == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: ctp
+          category: connection
+        annotations:
+          summary: "CTP连接断开"
+          description: "{{ $labels.connection_type }}连接已断开超过1分钟，broker: {{ $labels.broker_id }}"
+
+      - alert: CTPFrequentReconnections
+        expr: increase(ctp_reconnection_total[5m]) > 3
+        for: 0m
+        labels:
+          severity: warning
+          service: ctp
+          category: connection
+        annotations:
+          summary: "CTP频繁重连"
+          description: "{{ $labels.connection_type }}在5分钟内重连超过3次，broker: {{ $labels.broker_id }}"
+
+      - alert: CTPConnectionUptime
+        expr: ctp_connection_uptime_seconds < 300
+        for: 2m
+        labels:
+          severity: warning
+          service: ctp
+          category: connection
+        annotations:
+          summary: "CTP连接不稳定"
+          description: "{{ $labels.connection_type }}连接运行时间少于5分钟，可能存在连接问题"
+
+  # CTP交易告警
+  - name: ctp_trading_alerts
+    rules:
+      - alert: CTPHighOrderErrorRate
+        expr: (rate(ctp_orders_total{status="error"}[5m]) / rate(ctp_orders_total[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: error
+          service: ctp
+          category: trading
+        annotations:
+          summary: "CTP订单错误率过高"
+          description: "订单错误率超过10%，当前错误率: {{ $value | humanizePercentage }}"
+
+      - alert: CTPOrderResponseSlow
+        expr: histogram_quantile(0.95, rate(ctp_order_response_time_seconds_bucket[5m])) > 5
+        for: 3m
+        labels:
+          severity: warning
+          service: ctp
+          category: trading
+        annotations:
+          summary: "CTP订单响应缓慢"
+          description: "95%的订单响应时间超过5秒，当前P95: {{ $value }}秒"
+
+      - alert: CTPNoTradingActivity
+        expr: increase(ctp_orders_total[1h]) == 0
+        for: 30m
+        labels:
+          severity: info
+          service: ctp
+          category: trading
+        annotations:
+          summary: "CTP无交易活动"
+          description: "过去1小时内没有任何交易活动"
+
+  # CTP行情告警
+  - name: ctp_market_data_alerts
+    rules:
+      - alert: CTPMarketDataDelay
+        expr: histogram_quantile(0.95, rate(ctp_market_data_delay_seconds_bucket[5m])) > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: ctp
+          category: market_data
+        annotations:
+          summary: "CTP行情数据延迟"
+          description: "95%的行情数据延迟超过5秒，当前P95: {{ $value }}秒"
+
+      - alert: CTPNoMarketData
+        expr: increase(ctp_market_data_total[5m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: ctp
+          category: market_data
+        annotations:
+          summary: "CTP无行情数据"
+          description: "过去5分钟内没有收到任何行情数据"
+
+      - alert: CTPTooManySubscriptions
+        expr: ctp_subscriptions_active > 500
+        for: 1m
+        labels:
+          severity: warning
+          service: ctp
+          category: market_data
+        annotations:
+          summary: "CTP订阅数量过多"
+          description: "当前订阅数量: {{ $value }}，可能影响性能"
+
+  # 系统资源告警
+  - name: system_alerts
+    rules:
+      - alert: HighMemoryUsage
+        expr: ctp_memory_usage_bytes > 2 * 1024 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+          service: ctp
+          category: system
+        annotations:
+          summary: "内存使用过高"
+          description: "内存使用超过2GB，当前使用: {{ $value | humanizeBytes }}"
+
+      - alert: HighCPUUsage
+        expr: ctp_cpu_usage_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: ctp
+          category: system
+        annotations:
+          summary: "CPU使用率过高"
+          description: "CPU使用率超过80%，当前使用率: {{ $value }}%"
+
+      - alert: CTPServiceDown
+        expr: up{job="ctp-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: ctp
+          category: system
+        annotations:
+          summary: "CTP服务不可用"
+          description: "CTP后端服务已停止响应超过1分钟"
+
+  # 错误告警
+  - name: ctp_error_alerts
+    rules:
+      - alert: CTPHighErrorRate
+        expr: rate(ctp_errors_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: error
+          service: ctp
+          category: error
+        annotations:
+          summary: "CTP错误率过高"
+          description: "错误发生频率超过每分钟10次，错误类型: {{ $labels.error_type }}"
+
+      - alert: CTPCriticalError
+        expr: increase(ctp_errors_total{error_type="critical"}[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          service: ctp
+          category: error
+        annotations:
+          summary: "CTP严重错误"
+          description: "发生严重错误，错误代码: {{ $labels.error_code }}"
+
+  # 数据库告警
+  - name: database_alerts
+    rules:
+      - alert: PostgreSQLDown
+        expr: up{job="postgres-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+          category: system
+        annotations:
+          summary: "PostgreSQL数据库不可用"
+          description: "PostgreSQL数据库已停止响应超过1分钟"
+
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+          category: performance
+        annotations:
+          summary: "PostgreSQL连接数过高"
+          description: "数据库连接数超过最大连接数的80%"
+
+      - alert: PostgreSQLSlowQueries
+        expr: rate(pg_stat_database_tup_returned[5m]) / rate(pg_stat_database_tup_fetched[5m]) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+          category: performance
+        annotations:
+          summary: "PostgreSQL查询效率低"
+          description: "数据库查询效率低于10%，可能存在慢查询"
+
+  # Redis告警
+  - name: redis_alerts
+    rules:
+      - alert: RedisDown
+        expr: up{job="redis-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+          category: system
+        annotations:
+          summary: "Redis服务不可用"
+          description: "Redis服务已停止响应超过1分钟"
+
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+          category: performance
+        annotations:
+          summary: "Redis内存使用过高"
+          description: "Redis内存使用超过90%，当前使用: {{ $value | humanizePercentage }}"
+
+      - alert: RedisHighConnections
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+          category: performance
+        annotations:
+          summary: "Redis连接数过高"
+          description: "Redis连接数超过100，当前连接数: {{ $value }}"
+
+  # 网络和外部服务告警
+  - name: external_service_alerts
+    rules:
+      - alert: WebsiteDown
+        expr: probe_success{job="blackbox"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: website
+          category: availability
+        annotations:
+          summary: "网站不可访问"
+          description: "网站 {{ $labels.instance }} 已无法访问超过2分钟"
+
+      - alert: WebsiteSlowResponse
+        expr: probe_duration_seconds{job="blackbox"} > 5
+        for: 3m
+        labels:
+          severity: warning
+          service: website
+          category: performance
+        annotations:
+          summary: "网站响应缓慢"
+          description: "网站 {{ $labels.instance }} 响应时间超过5秒，当前响应时间: {{ $value }}秒"
+
+  # 业务指标告警
+  - name: business_alerts
+    rules:
+      - alert: LowTradingVolume
+        expr: sum(increase(ctp_trades_total[1h])) < 10
+        for: 30m
+        labels:
+          severity: info
+          service: ctp
+          category: business
+        annotations:
+          summary: "交易量偏低"
+          description: "过去1小时交易量少于10笔，当前交易量: {{ $value }}"
+
+      - alert: UnusualTradingActivity
+        expr: sum(rate(ctp_trades_total[5m])) > 100
+        for: 2m
+        labels:
+          severity: warning
+          service: ctp
+          category: business
+        annotations:
+          summary: "异常交易活动"
+          description: "交易频率异常高，每分钟超过100笔交易"
