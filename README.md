@@ -777,10 +777,10 @@ groups:
 
 ## 📞 联系方式
 
-- **项目主页**: https://github.com/your-repo/quant-platform
-- **问题反馈**: https://github.com/your-repo/quant-platform/issues
-- **邮箱**: your-email@example.com
-- **文档**: https://your-docs-site.com
+- **项目主页**: https://github.com/wu-shaobing/quant-platform
+- **问题反馈**: https://github.com/wu-shaobing/quant-platform/issues
+- **邮箱**: wushaobing911@outlook.com
+- **文档**: https://wu-shaobing-site.com
 
 ---
 
